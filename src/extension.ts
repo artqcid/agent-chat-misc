@@ -40,8 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri): string {
-  const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'webview', 'main.js'));
-  const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'webview', 'style.css'));
+  const appUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'webview', 'App.js'));
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -49,15 +48,13 @@ function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri): s
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agent Chat</title>
-    <link href="${styleUri}" rel="stylesheet">
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
-    <div id="chat-container">
-        <div id="messages"></div>
-        <input type="text" id="input" placeholder="Type your message...">
-        <button id="send">Send</button>
-    </div>
-    <script src="${scriptUri}"></script>
+    <div id="root"></div>
+    <script type="text/babel" src="${appUri}"></script>
 </body>
 </html>`;
 }
