@@ -13,11 +13,13 @@ function App() {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [systemPrompt, setSystemPrompt] = useState('');
 
   useEffect(() => {
     // Get providers on load
     vscode.postMessage({ command: 'getProviders' });
     vscode.postMessage({ command: 'getMCPData' });
+    vscode.postMessage({ command: 'getSystemPrompt' });
 
     // Listen for messages from extension
     window.addEventListener('message', event => {
@@ -41,6 +43,9 @@ function App() {
           setMcpData(message.servers);
           console.log('MCP Data:', message.servers);
           break;
+        case 'systemPrompt':
+          setSystemPrompt(message.prompt);
+          break;
         default:
           break;
       }
@@ -51,7 +56,7 @@ function App() {
     if (input.trim()) {
       const newMessage = { sender: 'user', text: input };
       setMessages(prev => [...prev, newMessage]);
-      vscode.postMessage({ command: 'sendMessage', text: input });
+      vscode.postMessage({ command: 'sendMessage', text: input, systemPrompt: systemPrompt });
       setInput('');
       setShowSuggestions(false);
       setSelectedSuggestionIndex(-1);
@@ -142,6 +147,23 @@ function App() {
             {currentProviderObj.models.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
         )}
+      </div>
+      <div style={{ padding: '10px', borderBottom: '1px solid var(--vscode-input-border)' }}>
+        <label>System Prompt:</label>
+        <textarea
+          value={systemPrompt}
+          onChange={(e) => setSystemPrompt(e.target.value)}
+          placeholder="Enter system prompt..."
+          style={{
+            width: '100%',
+            height: '60px',
+            padding: '4px',
+            backgroundColor: 'var(--vscode-input-background)',
+            color: 'var(--vscode-input-foreground)',
+            border: '1px solid var(--vscode-input-border)',
+            resize: 'vertical'
+          }}
+        />
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
         {messages.map((msg, index) => (

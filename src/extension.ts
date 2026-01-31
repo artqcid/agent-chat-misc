@@ -18,6 +18,9 @@ export function activate(context: vscode.ExtensionContext) {
     console.error('Failed to load config:', error);
   }
 
+  // Make config global for use in functions
+  (global as any).extensionConfig = config;
+
   // Initialize integrations
   initializeIntegrations(config);
 
@@ -45,7 +48,7 @@ export function activate(context: vscode.ExtensionContext) {
       async message => {
         switch (message.command) {
           case 'sendMessage':
-            await handleSendMessage(panel.webview, message.text);
+            await handleSendMessage(panel.webview, message.text, message.systemPrompt);
             break;
           case 'switchModel':
             switchProvider(message.provider, message.model);
@@ -56,6 +59,9 @@ export function activate(context: vscode.ExtensionContext) {
             break;
           case 'getMCPData':
             panel.webview.postMessage({ command: 'mcpData', servers: defaultMCPServers });
+            break;
+          case 'getSystemPrompt':
+            panel.webview.postMessage({ command: 'systemPrompt', prompt: config.systemPrompt });
             break;
           default:
             break;
@@ -108,20 +114,28 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(disposable, settingsDisposable);
 }
 
-async function handleSendMessage(webview: vscode.Webview, text: string) {
+async function handleSendMessage(webview: vscode.Webview, text: string, systemPrompt?: string) {
   try {
     // Optional: Query RAG for context
     const ragContext = await queryRAG(text);
     const enhancedText = ragContext ? `${text}\n\nContext: ${ragContext}` : text;
+
+    const config = (global as any).extensionConfig;
+    const prompt = systemPrompt || config.systemPrompt || 'You are a helpful AI assistant.';
 
     const headers: any = {};
     if (currentProvider.apiKey) {
       headers['Authorization'] = `Bearer ${currentProvider.apiKey}`;
     }
 
+    const messages = [
+      { role: 'system', content: prompt },
+      { role: 'user', content: enhancedText }
+    ];
+
     const response = await axios.post(`${currentProvider.baseUrl}/chat/completions`, {
       model: currentModel,
-      messages: [{ role: 'user', content: enhancedText }],
+      messages: messages,
       stream: false
     }, { headers });
 
