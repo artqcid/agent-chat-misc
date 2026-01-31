@@ -9,6 +9,10 @@ function App() {
   const [providers, setProviders] = useState([]);
   const [selectedProvider, setSelectedProvider] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
+  const [mcpData, setMcpData] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
 
   useEffect(() => {
     // Get providers on load
@@ -34,6 +38,7 @@ function App() {
           break;
         case 'mcpData':
           // Store MCP data for autocomplete or display
+          setMcpData(message.servers);
           console.log('MCP Data:', message.servers);
           break;
         default:
@@ -48,11 +53,62 @@ function App() {
       setMessages(prev => [...prev, newMessage]);
       vscode.postMessage({ command: 'sendMessage', text: input });
       setInput('');
+      setShowSuggestions(false);
+      setSelectedSuggestionIndex(-1);
     }
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setInput(value);
+
+    const lastAtIndex = value.lastIndexOf('@');
+    const lastSlashIndex = value.lastIndexOf('/');
+
+    if (lastAtIndex > lastSlashIndex) {
+      // Autocomplete for @contexts
+      const query = value.substring(lastAtIndex + 1).toLowerCase();
+      const contexts = mcpData.flatMap(server => server.contexts || []);
+      const filtered = contexts.filter(ctx => ctx.toLowerCase().includes(query));
+      setSuggestions(filtered.map(ctx => '@' + ctx));
+      setShowSuggestions(filtered.length > 0);
+    } else if (lastSlashIndex > lastAtIndex) {
+      // Autocomplete for /prompts
+      const query = value.substring(lastSlashIndex + 1).toLowerCase();
+      const prompts = mcpData.flatMap(server => server.prompts || []);
+      const filtered = prompts.filter(p => p.toLowerCase().includes(query));
+      setSuggestions(filtered.map(p => '/' + p));
+      setShowSuggestions(filtered.length > 0);
+    } else {
+      setShowSuggestions(false);
+      setSelectedSuggestionIndex(-1);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (showSuggestions) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => (prev + 1) % suggestions.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : suggestions.length - 1);
+      } else if (e.key === 'Tab' || e.key === 'Enter') {
+        e.preventDefault();
+        if (selectedSuggestionIndex >= 0) {
+          const selected = suggestions[selectedSuggestionIndex];
+          const lastAt = input.lastIndexOf('@');
+          const lastSlash = input.lastIndexOf('/');
+          const prefix = lastAt > lastSlash ? input.substring(0, lastAt) : input.substring(0, lastSlash);
+          setInput(prefix + selected + ' ');
+          setShowSuggestions(false);
+          setSelectedSuggestionIndex(-1);
+        }
+      } else if (e.key === 'Escape') {
+        setShowSuggestions(false);
+        setSelectedSuggestionIndex(-1);
+      }
+    } else if (e.key === 'Enter') {
       sendMessage();
     }
   };
@@ -102,20 +158,58 @@ function App() {
         ))}
       </div>
       <div style={{ display: 'flex', padding: '10px', borderTop: '1px solid var(--vscode-input-border)' }}>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Type your message..."
-          style={{
-            flex: 1,
-            padding: '8px',
-            border: '1px solid var(--vscode-input-border)',
-            backgroundColor: 'var(--vscode-input-background)',
-            color: 'var(--vscode-input-foreground)'
-          }}
-        />
+        <div style={{ flex: 1, position: 'relative' }}>
+          <input
+            type="text"
+            value={input}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Type your message..."
+            style={{
+              width: '100%',
+              padding: '8px',
+              border: '1px solid var(--vscode-input-border)',
+              backgroundColor: 'var(--vscode-input-background)',
+              color: 'var(--vscode-input-foreground)'
+            }}
+          />
+          {showSuggestions && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              backgroundColor: 'var(--vscode-quickInput-background)',
+              border: '1px solid var(--vscode-input-border)',
+              borderTop: 'none',
+              maxHeight: '200px',
+              overflowY: 'auto',
+              zIndex: 1000
+            }}>
+              {suggestions.map((suggestion, index) => (
+                <div
+                  key={index}
+                  onClick={() => {
+                    const lastAt = input.lastIndexOf('@');
+                    const lastSlash = input.lastIndexOf('/');
+                    const prefix = lastAt > lastSlash ? input.substring(0, lastAt) : input.substring(0, lastSlash);
+                    setInput(prefix + suggestion + ' ');
+                    setShowSuggestions(false);
+                    setSelectedSuggestionIndex(-1);
+                  }}
+                  style={{
+                    padding: '4px 8px',
+                    cursor: 'pointer',
+                    backgroundColor: index === selectedSuggestionIndex ? 'var(--vscode-list-activeSelectionBackground)' : 'transparent',
+                    color: index === selectedSuggestionIndex ? 'var(--vscode-list-activeSelectionForeground)' : 'var(--vscode-foreground)'
+                  }}
+                >
+                  {suggestion}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <button onClick={sendMessage} style={{
           padding: '8px 16px',
           marginLeft: '10px',
