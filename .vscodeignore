@@ -1,6 +1,7 @@
 **
 !.vscode/**
 !out/**
+!webview/**
 node_modules/**
 *.vsix
 **/.DS_Store
