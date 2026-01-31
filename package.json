@@ -18,6 +18,10 @@
       {
         "command": "agentChat.openChat",
         "title": "Open Agent Chat"
+      },
+      {
+        "command": "agentChat.openSettings",
+        "title": "Open Agent Chat Settings"
       }
     ],
     "views": {

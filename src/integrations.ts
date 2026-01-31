@@ -18,24 +18,11 @@ export interface EmbeddingServer {
   url: string;
 }
 
-export const defaultMCPServers: MCPServer[] = [
-  {
-    name: 'MCP Server Misc',
-    url: 'http://localhost:3000', // Adjust port
-    prompts: [],
-    contexts: []
-  }
-];
+let mcpServers: MCPServer[] = [];
+export let defaultRAGServer: RAGServer;
+export let defaultEmbeddingServer: EmbeddingServer;
 
-export const defaultRAGServer: RAGServer = {
-  name: 'RAG Server',
-  url: 'http://localhost:8002' // Adjust port
-};
-
-export const defaultEmbeddingServer: EmbeddingServer = {
-  name: 'Embedding Server',
-  url: 'http://localhost:8001' // Adjust port
-};
+export const defaultMCPServers = mcpServers;
 
 export async function fetchMCPData(server: MCPServer) {
   try {
@@ -68,8 +55,23 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 }
 
 // Initialize MCP data on startup
-export async function initializeIntegrations() {
-  for (const server of defaultMCPServers) {
-    await fetchMCPData(server);
+export function initializeIntegrations(config: any) {
+  mcpServers = config.mcpServers.map((s: any) => ({
+    name: s.name,
+    url: s.url,
+    prompts: [],
+    contexts: []
+  }));
+  defaultRAGServer = {
+    name: 'RAG Server',
+    url: config.mcpServers.find((s: any) => s.name === 'RAG Server')?.url || 'http://localhost:8000'
+  };
+  defaultEmbeddingServer = {
+    name: 'Embedding Server',
+    url: config.mcpServers.find((s: any) => s.name === 'Embedding Server')?.url || 'http://localhost:5000'
+  };
+  // Fetch MCP data
+  for (const server of mcpServers) {
+    fetchMCPData(server);
   }
 }

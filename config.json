@@ -1,0 +1,35 @@
+{
+  "providers": [
+    {
+      "name": "Llama.cpp",
+      "url": "http://localhost:8080",
+      "models": ["qwen2.5-7b"]
+    },
+    {
+      "name": "Ollama",
+      "url": "http://localhost:11434",
+      "models": ["llama2", "mistral"]
+    },
+    {
+      "name": "OpenAI",
+      "url": "https://api.openai.com/v1",
+      "models": ["gpt-3.5-turbo", "gpt-4"],
+      "apiKey": ""
+    }
+  ],
+  "mcpServers": [
+    {
+      "name": "MCP Server Misc",
+      "url": "http://localhost:3000"
+    },
+    {
+      "name": "RAG Server",
+      "url": "http://localhost:8000"
+    },
+    {
+      "name": "Embedding Server",
+      "url": "http://localhost:5000"
+    }
+  ],
+  "systemPrompt": "You are a helpful AI assistant."
+}

@@ -1,13 +1,28 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import axios from 'axios';
-import { currentProvider, currentModel, switchProvider, getAvailableProviders } from './providers';
+import { currentProvider, currentModel, switchProvider, getAvailableProviders, initializeProviders } from './providers';
 import { initializeIntegrations, defaultMCPServers, queryRAG } from './integrations';
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('Agent Chat Misc extension is now active!');
 
+  // Load config
+  const configPath = path.join(context.extensionPath, 'config.json');
+  let config: any = {};
+  try {
+    const configData = fs.readFileSync(configPath, 'utf8');
+    config = JSON.parse(configData);
+  } catch (error) {
+    console.error('Failed to load config:', error);
+  }
+
   // Initialize integrations
-  initializeIntegrations();
+  initializeIntegrations(config);
+
+  // Initialize providers
+  initializeProviders(config);
 
   // Register the command to open the chat
   const disposable = vscode.commands.registerCommand('agentChat.openChat', () => {
@@ -51,7 +66,46 @@ export function activate(context: vscode.ExtensionContext) {
     );
   });
 
-  context.subscriptions.push(disposable);
+  // Register the command to open settings
+  const settingsDisposable = vscode.commands.registerCommand('agentChat.openSettings', () => {
+    // Create a webview panel for settings
+    const panel = vscode.window.createWebviewPanel(
+      'agentChatSettings',
+      'Agent Chat Settings',
+      vscode.ViewColumn.One,
+      {
+        enableScripts: true,
+        localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'webview')]
+      }
+    );
+
+    // Set the HTML content for the settings webview
+    panel.webview.html = getSettingsWebviewContent(panel.webview, context.extensionUri, config);
+
+    // Handle messages from the settings webview
+    panel.webview.onDidReceiveMessage(
+      message => {
+        switch (message.command) {
+          case 'saveConfig':
+            try {
+              fs.writeFileSync(configPath, JSON.stringify(message.config, null, 2));
+              config = message.config;
+              vscode.window.showInformationMessage('Settings saved successfully!');
+            } catch (error) {
+              vscode.window.showErrorMessage('Failed to save settings.');
+              console.error(error);
+            }
+            break;
+          default:
+            break;
+        }
+      },
+      undefined,
+      context.subscriptions
+    );
+  });
+
+  context.subscriptions.push(disposable, settingsDisposable);
 }
 
 async function handleSendMessage(webview: vscode.Webview, text: string) {
@@ -95,6 +149,42 @@ function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri): s
 <body>
     <div id="root"></div>
     <script type="text/babel" src="${appUri}"></script>
+</body>
+</html>`;
+}
+
+function getSettingsWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri, config: any): string {
+  const configJson = JSON.stringify(config, null, 2);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Chat Settings</title>
+    <style>
+      body { font-family: var(--vscode-font-family); background-color: var(--vscode-editor-background); color: var(--vscode-editor-foreground); padding: 20px; }
+      textarea { width: 100%; height: 400px; background-color: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); padding: 8px; font-family: monospace; }
+      button { background-color: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; padding: 8px 16px; cursor: pointer; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h2>Agent Chat Settings</h2>
+    <textarea id="configEditor">${configJson.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+    <br>
+    <button onclick="saveConfig()">Save Settings</button>
+    <script>
+      const vscode = acquireVsCodeApi();
+      function saveConfig() {
+        const configText = document.getElementById('configEditor').value;
+        try {
+          const config = JSON.parse(configText);
+          vscode.postMessage({ command: 'saveConfig', config: config });
+        } catch (error) {
+          alert('Invalid JSON: ' + error.message);
+        }
+      }
+    </script>
 </body>
 </html>`;
 }
