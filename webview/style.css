@@ -1,0 +1,51 @@
+/* Basic styles for Agent Chat webview */
+body {
+  font-family: var(--vscode-font-family);
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  margin: 0;
+  padding: 10px;
+}
+
+#chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+#messages {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+
+.message {
+  margin: 5px 0;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.message.user {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  align-self: flex-end;
+}
+
+.message.agent {
+  background-color: var(--vscode-input-background);
+}
+
+#input {
+  padding: 8px;
+  border: 1px solid var(--vscode-input-border);
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+}
+
+#send {
+  padding: 8px;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  cursor: pointer;
+}
