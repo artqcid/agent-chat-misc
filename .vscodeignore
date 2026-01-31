@@ -1,0 +1,21 @@
+**
+.vscode/**
+out/**
+node_modules/**
+*.vsix
+**/.DS_Store
+**/*.log
+coverage/**
+.nyc_output/**
+test-results/**
+*.tgz
+**/.vscode-test
+**/.vscode test
+**/.history
+agent-plan.md
+CHANGELOG.md
+CONTRIBUTING.md
+API.md
+.github/**
+docs/**
+**/*.tsbuildinfo

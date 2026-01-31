@@ -15,7 +15,7 @@ class AgentChatProvider implements vscode.TreeDataProvider<ChatItem> {
     return element;
   }
 
-  getChildren(element?: ChatItem): Thenable<ChatItem[]> {
+  getChildren(element?: ChatItem): Promise<ChatItem[]> {
     if (!element) {
       return Promise.resolve([
         new ChatItem('Open Chat', 'Click to open Agent Chat', vscode.TreeItemCollapsibleState.None, {

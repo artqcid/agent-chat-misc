@@ -26,11 +26,12 @@ export class WebViewController {
         this.providerManager.switchProvider(message.provider, message.model);
         webview.postMessage({ command: 'modelSwitched', provider: message.provider, model: message.model });
         break;
-      case 'getProviders':
+      case 'getProviders': {
         const providers = this.providerManager.getAvailableProviders();
         const providerStatuses = await this.providerManager.getProviderStatus();
         webview.postMessage({ command: 'providersList', providers, statuses: providerStatuses });
         break;
+      }
       case 'getMCPData':
         await this.sendMCPData(webview);
         break;
