@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as http from 'http';
 import axios from 'axios';
 import { currentProvider, currentModel, switchProvider, getAvailableProviders, initializeProviders } from './providers';
 import { initializeIntegrations, defaultMCPServers, queryRAG } from './integrations';
@@ -20,6 +21,52 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Make config global for use in functions
   (global as any).extensionConfig = config;
+
+  // Start HTTP server for API endpoints
+  const server = http.createServer(async (req, res) => {
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(200);
+      res.end();
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/chat') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk.toString();
+      });
+      req.on('end', async () => {
+        try {
+          const { message, systemPrompt } = JSON.parse(body);
+          const reply = await handleAPIChat(message, systemPrompt);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ reply }));
+        } catch (error) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Internal server error' }));
+        }
+      });
+    } else {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Not found' }));
+    }
+  });
+
+  const port = 3001; // Choose a port
+  server.listen(port, () => {
+    console.log(`Agent Chat API server listening on port ${port}`);
+  });
+
+  context.subscriptions.push({
+    dispose: () => {
+      server.close();
+    }
+  });
 
   // Initialize integrations
   initializeIntegrations(config);
@@ -144,6 +191,37 @@ async function handleSendMessage(webview: vscode.Webview, text: string, systemPr
   } catch (error) {
     vscode.window.showErrorMessage('Error communicating with backend: ' + (error as Error).message);
     webview.postMessage({ command: 'receiveMessage', text: 'Error: Could not get response from LLM.' });
+  }
+}
+
+async function handleAPIChat(text: string, systemPrompt?: string): Promise<string> {
+  try {
+    // Optional: Query RAG for context
+    const ragContext = await queryRAG(text);
+    const enhancedText = ragContext ? `${text}\n\nContext: ${ragContext}` : text;
+
+    const config = (global as any).extensionConfig;
+    const prompt = systemPrompt || config.systemPrompt || 'You are a helpful AI assistant.';
+
+    const headers: any = {};
+    if (currentProvider.apiKey) {
+      headers['Authorization'] = `Bearer ${currentProvider.apiKey}`;
+    }
+
+    const messages = [
+      { role: 'system', content: prompt },
+      { role: 'user', content: enhancedText }
+    ];
+
+    const response = await axios.post(`${currentProvider.baseUrl}/chat/completions`, {
+      model: currentModel,
+      messages: messages,
+      stream: false
+    }, { headers });
+
+    return response.data.choices[0].message.content;
+  } catch (error) {
+    throw new Error('Could not get response from LLM.');
   }
 }
 
