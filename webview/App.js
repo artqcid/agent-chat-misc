@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 
+/* global acquireVsCodeApi */
+
 const vscode = acquireVsCodeApi();
 
 function App() {
