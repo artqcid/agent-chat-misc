@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import axios from 'axios';
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('Agent Chat Misc extension is now active!');
@@ -21,11 +22,10 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Handle messages from the webview
     panel.webview.onDidReceiveMessage(
-      message => {
+      async message => {
         switch (message.command) {
           case 'sendMessage':
-            // Handle chat message
-            vscode.window.showInformationMessage(`Message: ${message.text}`);
+            await handleSendMessage(panel.webview, message.text);
             break;
           default:
             break;
@@ -37,6 +37,23 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   context.subscriptions.push(disposable);
+}
+
+async function handleSendMessage(webview: vscode.Webview, text: string) {
+  try {
+    // Send to backend (default: Qwen Training Llama.cpp Server)
+    const response = await axios.post('http://localhost:8080/v1/chat/completions', {
+      model: 'qwen', // or from config
+      messages: [{ role: 'user', content: text }],
+      stream: false
+    });
+
+    const reply = response.data.choices[0].message.content;
+    webview.postMessage({ command: 'receiveMessage', text: reply });
+  } catch (error) {
+    vscode.window.showErrorMessage('Error communicating with backend: ' + (error as Error).message);
+    webview.postMessage({ command: 'receiveMessage', text: 'Error: Could not get response from LLM.' });
+  }
 }
 
 function getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri): string {

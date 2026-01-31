@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 
 const vscode = acquireVsCodeApi();
@@ -6,6 +6,20 @@ const vscode = acquireVsCodeApi();
 function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
+
+  useEffect(() => {
+    // Listen for messages from extension
+    window.addEventListener('message', event => {
+      const message = event.data;
+      switch (message.command) {
+        case 'receiveMessage':
+          setMessages(prev => [...prev, { sender: 'agent', text: message.text }]);
+          break;
+        default:
+          break;
+      }
+    });
+  }, []);
 
   const sendMessage = () => {
     if (input.trim()) {
