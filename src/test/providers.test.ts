@@ -1,29 +1,32 @@
 import * as assert from 'assert';
-import { initializeProviders, switchProvider, getAvailableProviders } from '../providers';
+import { ProviderManager } from '../core/services/ProviderManager';
+import { VSCodeConfigService } from '../infrastructure/storage/VSCodeConfigService';
+import * as vscode from 'vscode';
 
-suite('Providers Test Suite', () => {
-    test('initializeProviders should set providers from config', () => {
-        const config = {
+suite('ProviderManager Test Suite', () => {
+    test('initialize should set providers from config', async () => {
+        // Mock VSCode context
+        const mockContext = {
+            extensionPath: '/test',
+            globalState: {
+                get: () => ({}),
+                update: () => Promise.resolve()
+            }
+        } as any;
+
+        const configService = new VSCodeConfigService(mockContext);
+        // Mock config
+        (configService as any).config = {
             providers: [
                 { name: 'TestProvider', url: 'http://test.com', models: ['model1'] }
             ]
         };
-        initializeProviders(config);
-        const providers = getAvailableProviders();
+
+        const providerManager = new ProviderManager(configService);
+        await providerManager.initialize();
+
+        const providers = providerManager.getAvailableProviders();
         assert.strictEqual(providers.length, 1);
         assert.strictEqual(providers[0].name, 'TestProvider');
-    });
-
-    test('switchProvider should update current provider and model', () => {
-        const config = {
-            providers: [
-                { name: 'Provider1', url: 'http://test1.com', models: ['model1'] },
-                { name: 'Provider2', url: 'http://test2.com', models: ['model2'] }
-            ]
-        };
-        initializeProviders(config);
-        switchProvider('Provider2', 'model2');
-        // Note: Internal state, hard to test without exposing getters
-        assert.ok(true); // Placeholder
     });
 });
