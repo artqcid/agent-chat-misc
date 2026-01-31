@@ -13,6 +13,7 @@ function App() {
   useEffect(() => {
     // Get providers on load
     vscode.postMessage({ command: 'getProviders' });
+    vscode.postMessage({ command: 'getMCPData' });
 
     // Listen for messages from extension
     window.addEventListener('message', event => {
@@ -30,6 +31,10 @@ function App() {
           break;
         case 'modelSwitched':
           // Optional: Show notification
+          break;
+        case 'mcpData':
+          // Store MCP data for autocomplete or display
+          console.log('MCP Data:', message.servers);
           break;
         default:
           break;

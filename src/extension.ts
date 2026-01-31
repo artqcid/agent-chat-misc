@@ -1,9 +1,13 @@
 import * as vscode from 'vscode';
 import axios from 'axios';
 import { currentProvider, currentModel, switchProvider, getAvailableProviders } from './providers';
+import { initializeIntegrations, defaultMCPServers, queryRAG } from './integrations';
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('Agent Chat Misc extension is now active!');
+
+  // Initialize integrations
+  initializeIntegrations();
 
   // Register the command to open the chat
   const disposable = vscode.commands.registerCommand('agentChat.openChat', () => {
@@ -35,6 +39,9 @@ export function activate(context: vscode.ExtensionContext) {
           case 'getProviders':
             panel.webview.postMessage({ command: 'providersList', providers: getAvailableProviders() });
             break;
+          case 'getMCPData':
+            panel.webview.postMessage({ command: 'mcpData', servers: defaultMCPServers });
+            break;
           default:
             break;
         }
@@ -49,6 +56,10 @@ export function activate(context: vscode.ExtensionContext) {
 
 async function handleSendMessage(webview: vscode.Webview, text: string) {
   try {
+    // Optional: Query RAG for context
+    const ragContext = await queryRAG(text);
+    const enhancedText = ragContext ? `${text}\n\nContext: ${ragContext}` : text;
+
     const headers: any = {};
     if (currentProvider.apiKey) {
       headers['Authorization'] = `Bearer ${currentProvider.apiKey}`;
@@ -56,7 +67,7 @@ async function handleSendMessage(webview: vscode.Webview, text: string) {
 
     const response = await axios.post(`${currentProvider.baseUrl}/chat/completions`, {
       model: currentModel,
-      messages: [{ role: 'user', content: text }],
+      messages: [{ role: 'user', content: enhancedText }],
       stream: false
     }, { headers });
 
