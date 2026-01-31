@@ -6,14 +6,30 @@ const vscode = acquireVsCodeApi();
 function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
+  const [providers, setProviders] = useState([]);
+  const [selectedProvider, setSelectedProvider] = useState('');
+  const [selectedModel, setSelectedModel] = useState('');
 
   useEffect(() => {
+    // Get providers on load
+    vscode.postMessage({ command: 'getProviders' });
+
     // Listen for messages from extension
     window.addEventListener('message', event => {
       const message = event.data;
       switch (message.command) {
         case 'receiveMessage':
           setMessages(prev => [...prev, { sender: 'agent', text: message.text }]);
+          break;
+        case 'providersList':
+          setProviders(message.providers);
+          if (message.providers.length > 0) {
+            setSelectedProvider(message.providers[0].name);
+            setSelectedModel(message.providers[0].models[0]);
+          }
+          break;
+        case 'modelSwitched':
+          // Optional: Show notification
           break;
         default:
           break;
@@ -36,8 +52,36 @@ function App() {
     }
   };
 
+  const handleProviderChange = (e) => {
+    const providerName = e.target.value;
+    setSelectedProvider(providerName);
+    const provider = providers.find(p => p.name === providerName);
+    if (provider) {
+      setSelectedModel(provider.models[0]);
+      vscode.postMessage({ command: 'switchModel', provider: providerName, model: provider.models[0] });
+    }
+  };
+
+  const handleModelChange = (e) => {
+    const modelName = e.target.value;
+    setSelectedModel(modelName);
+    vscode.postMessage({ command: 'switchModel', provider: selectedProvider, model: modelName });
+  };
+
+  const currentProviderObj = providers.find(p => p.name === selectedProvider);
+
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'var(--vscode-font-family)', backgroundColor: 'var(--vscode-editor-background)', color: 'var(--vscode-editor-foreground)' }}>
+      <div style={{ padding: '10px', borderBottom: '1px solid var(--vscode-input-border)', display: 'flex', gap: '10px' }}>
+        <select value={selectedProvider} onChange={handleProviderChange} style={{ padding: '4px', backgroundColor: 'var(--vscode-input-background)', color: 'var(--vscode-input-foreground)' }}>
+          {providers.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+        </select>
+        {currentProviderObj && (
+          <select value={selectedModel} onChange={handleModelChange} style={{ padding: '4px', backgroundColor: 'var(--vscode-input-background)', color: 'var(--vscode-input-foreground)' }}>
+            {currentProviderObj.models.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        )}
+      </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
         {messages.map((msg, index) => (
           <div key={index} style={{

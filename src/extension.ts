@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import axios from 'axios';
+import { currentProvider, currentModel, switchProvider, getAvailableProviders } from './providers';
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('Agent Chat Misc extension is now active!');
@@ -27,6 +28,13 @@ export function activate(context: vscode.ExtensionContext) {
           case 'sendMessage':
             await handleSendMessage(panel.webview, message.text);
             break;
+          case 'switchModel':
+            switchProvider(message.provider, message.model);
+            panel.webview.postMessage({ command: 'modelSwitched', provider: message.provider, model: message.model });
+            break;
+          case 'getProviders':
+            panel.webview.postMessage({ command: 'providersList', providers: getAvailableProviders() });
+            break;
           default:
             break;
         }
@@ -41,12 +49,16 @@ export function activate(context: vscode.ExtensionContext) {
 
 async function handleSendMessage(webview: vscode.Webview, text: string) {
   try {
-    // Send to backend (default: Qwen Training Llama.cpp Server)
-    const response = await axios.post('http://localhost:8080/v1/chat/completions', {
-      model: 'qwen', // or from config
+    const headers: any = {};
+    if (currentProvider.apiKey) {
+      headers['Authorization'] = `Bearer ${currentProvider.apiKey}`;
+    }
+
+    const response = await axios.post(`${currentProvider.baseUrl}/chat/completions`, {
+      model: currentModel,
       messages: [{ role: 'user', content: text }],
       stream: false
-    });
+    }, { headers });
 
     const reply = response.data.choices[0].message.content;
     webview.postMessage({ command: 'receiveMessage', text: reply });
