@@ -20,6 +20,22 @@ export class SettingsWebViewController {
           console.error(error);
         }
         break;
+      case 'reloadConfig':
+        try {
+          await this.configService.load();
+          // Test connections here if needed
+          vscode.window.showInformationMessage('Configuration reloaded successfully!');
+          // Send updated config back to webview
+          webview.postMessage({ command: 'configReloaded', config: {
+            providers: this.configService.get('providers'),
+            mcpServers: this.configService.get('mcpServers'),
+            systemPrompt: this.configService.get('systemPrompt')
+          }});
+        } catch (error) {
+          vscode.window.showErrorMessage('Failed to reload configuration.');
+          console.error(error);
+        }
+        break;
       default:
         break;
     }
@@ -51,6 +67,7 @@ export class SettingsWebViewController {
     <textarea id="configEditor">${configJson.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
     <br>
     <button onclick="saveConfig()">Save Settings</button>
+    <button onclick="reloadConfig()">Reload Configuration</button>
     <script>
       const vscode = acquireVsCodeApi();
       function saveConfig() {
@@ -62,6 +79,17 @@ export class SettingsWebViewController {
           alert('Invalid JSON: ' + error.message);
         }
       }
+      function reloadConfig() {
+        vscode.postMessage({ command: 'reloadConfig' });
+      }
+      // Listen for config reload response
+      window.addEventListener('message', event => {
+        const message = event.data;
+        if (message.command === 'configReloaded') {
+          document.getElementById('configEditor').value = JSON.stringify(message.config, null, 2);
+          alert('Configuration reloaded successfully!');
+        }
+      });
     </script>
 </body>
 </html>`;

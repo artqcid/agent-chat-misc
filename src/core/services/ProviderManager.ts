@@ -3,6 +3,7 @@ import { ILLMProvider } from '../interfaces/ILLMProvider';
 import { IConfigService } from '../interfaces/IConfigService';
 import { ProviderConfig } from '../types/Config';
 import { OpenAIProvider, LocalLLMProvider } from '../../infrastructure/vscode/LLMProvider';
+import axios from 'axios';
 
 export class ProviderManager {
   private providers: ILLMProvider[] = [];
@@ -26,6 +27,29 @@ export class ProviderManager {
     } else {
       return new LocalLLMProvider(config.name, config.models, config.url);
     }
+  }
+
+  async testProviderConnectivity(providerName: string): Promise<boolean> {
+    const provider = this.providers.find(p => p.name === providerName);
+    if (!provider) return false;
+
+    try {
+      // Simple connectivity test - try to send a minimal request
+      await provider.sendMessage('test', { systemPrompt: 'test' });
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async getProviderStatus(): Promise<{ name: string; available: boolean }[]> {
+    const statuses = await Promise.all(
+      this.providers.map(async (provider) => ({
+        name: provider.name,
+        available: await this.testProviderConnectivity(provider.name)
+      }))
+    );
+    return statuses;
   }
 
   switchProvider(providerName: string, modelName: string): void {

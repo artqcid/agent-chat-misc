@@ -10,11 +10,51 @@ import { WebViewController } from './ui/controllers/WebViewController';
 import { SettingsWebViewController } from './ui/controllers/SettingsWebViewController';
 import { COMMANDS } from './shared/constants/commands';
 
+class AgentChatProvider implements vscode.TreeDataProvider<ChatItem> {
+  getTreeItem(element: ChatItem): vscode.TreeItem {
+    return element;
+  }
+
+  getChildren(element?: ChatItem): Thenable<ChatItem[]> {
+    if (!element) {
+      return Promise.resolve([
+        new ChatItem('Open Chat', 'Click to open Agent Chat', vscode.TreeItemCollapsibleState.None, {
+          command: COMMANDS.OPEN_CHAT,
+          title: 'Open Agent Chat'
+        }),
+        new ChatItem('Settings', 'Configure Agent Chat', vscode.TreeItemCollapsibleState.None, {
+          command: COMMANDS.OPEN_SETTINGS,
+          title: 'Open Agent Chat Settings'
+        })
+      ]);
+    }
+    return Promise.resolve([]);
+  }
+}
+
+class ChatItem extends vscode.TreeItem {
+  constructor(
+    public readonly label: string,
+    public readonly tooltip: string,
+    public readonly collapsibleState: vscode.TreeItemCollapsibleState,
+    public readonly command?: vscode.Command
+  ) {
+    super(label, collapsibleState);
+    this.tooltip = tooltip;
+    this.command = command;
+    this.iconPath = '$(comment-discussion)';
+  }
+}
+
 let webviewPanel: vscode.WebviewPanel | undefined;
 let settingsPanel: vscode.WebviewPanel | undefined;
 
 export async function activate(context: vscode.ExtensionContext) {
   console.log('Agent Chat Misc extension is now active!');
+
+  // Register the tree data provider for the sidebar view
+  const agentChatProvider = new AgentChatProvider();
+  vscode.window.registerTreeDataProvider('agentChatView', agentChatProvider);
 
   // Initialize dependency injection container
   const container = new Container();

@@ -16,6 +16,7 @@ function App() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const [systemPrompt, setSystemPrompt] = useState('');
+  const [statusMessages, setStatusMessages] = useState([]);
 
   useEffect(() => {
     // Get providers on load
@@ -36,6 +37,13 @@ function App() {
             setSelectedProvider(message.providers[0].name);
             setSelectedModel(message.providers[0].models[0]);
           }
+          // Check provider statuses
+          if (message.statuses) {
+            const unavailableProviders = message.statuses.filter(s => !s.available);
+            if (unavailableProviders.length > 0) {
+              setStatusMessages(prev => [...prev, `Warning: Providers not available: ${unavailableProviders.map(s => s.name).join(', ')}`]);
+            }
+          }
           break;
         case 'modelSwitched':
           // Optional: Show notification
@@ -43,6 +51,9 @@ function App() {
         case 'mcpData':
           // Store MCP data for autocomplete or display
           setMcpData(message.servers);
+          if (!message.available) {
+            setStatusMessages(prev => [...prev, `Error: MCP server not available - ${message.error || 'Connection failed'}`]);
+          }
           console.log('MCP Data:', message.servers);
           break;
         case 'systemPrompt':
@@ -167,6 +178,13 @@ function App() {
           }}
         />
       </div>
+      {statusMessages.length > 0 && (
+        <div style={{ padding: '10px', borderBottom: '1px solid var(--vscode-input-border)', backgroundColor: 'var(--vscode-notificationsWarningIcon-foreground)', color: 'var(--vscode-editor-background)' }}>
+          {statusMessages.map((msg, index) => (
+            <div key={index} style={{ margin: '2px 0' }}>{msg}</div>
+          ))}
+        </div>
+      )}
       <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
         {messages.map((msg, index) => (
           <div key={index} style={{
